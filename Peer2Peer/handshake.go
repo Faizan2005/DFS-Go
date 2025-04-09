@@ -2,4 +2,4 @@ package peer2peer
 
 type HandshakeFunc func(Peer) error
 
-func NOPHandshakeFunc(Peer) error { return nil }
+func NOPEHandshakeFunc(Peer) error { return nil }
