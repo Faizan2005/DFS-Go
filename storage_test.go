@@ -2,16 +2,20 @@ package main
 
 import (
 	"bytes"
+	"io"
+
+	//"os"
 	"testing"
 )
 
-func TestPathTransformFunc(t *testing.T) {
-	key := "test.txt"
+var Key = "test.txt"
+var Data = []byte("whassup ma boy!")
 
+func TestPathTransformFunc(t *testing.T) {
 	expectedPathname := "4b6fc/b2d52/1ef0f/d442a/5301e/7932d/16cc9/f375a"
 	expectedFilename := "4b6fcb2d521ef0fd442a5301e7932d16cc9f375a"
 
-	pathKey := CASPathTransformFunc(key)
+	pathKey := CASPathTransformFunc(Key)
 
 	if pathKey.pathname != expectedPathname || pathKey.filename != expectedFilename {
 		t.Errorf("unexpected pathKey:\ngot: {pathname: %s, filename: %s}\nwant: {pathname: %s, filename: %s}",
@@ -23,18 +27,54 @@ func TestPathTransformFunc(t *testing.T) {
 }
 
 func TestWriteStream(t *testing.T) {
-	key := "test.txt"
-	data := []byte("whassup ma boy!")
-	reader := bytes.NewReader(data)
+	reader := bytes.NewReader(Data)
+
+	metaPath := "test_metadata.json"
+	//defer os.Remove(metaPath) // clean after test
 
 	store := NewStore(structOpts{
 		pathTransformFunc: CASPathTransformFunc,
+		Metadata:          NewMetadata(metaPath),
 	})
 
-	err := store.WriteStream(key, reader)
+	err := store.WriteStream(Key, reader)
 	if err != nil {
 		t.Fatalf("WriteStream failed: %v", err)
 	}
 
-	t.Logf("WriteStream succeeded for key: %s", key)
+	t.Logf("WriteStream succeeded for key: %s", Key)
+}
+
+func TestReadStream(t *testing.T) {
+	metaPath := "test_metadata.json"
+	//defer os.Remove(metaPath) // clean metadata file
+
+	store := NewStore(structOpts{
+		pathTransformFunc: CASPathTransformFunc,
+		Metadata:          NewMetadata(metaPath),
+	})
+
+	// First write to ensure file exists
+	reader := bytes.NewReader(Data)
+	err := store.WriteStream(Key, reader)
+	if err != nil {
+		t.Fatalf("WriteStream failed: %v", err)
+	}
+
+	// Now test read
+	readStream, err := store.ReadStream(Key)
+	if err != nil {
+		t.Fatalf("ReadStream failed: %v", err)
+	}
+
+	readData, err := io.ReadAll(readStream)
+	if err != nil {
+		t.Fatalf("Reading data failed: %v", err)
+	}
+
+	if !bytes.Equal(readData, Data) {
+		t.Errorf("ReadStream data mismatch:\ngot: %s\nwant: %s", string(readData), string(Data))
+	} else {
+		t.Logf("ReadStream succeeded and data matched.")
+	}
 }

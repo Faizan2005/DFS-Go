@@ -19,6 +19,7 @@ type pathTransform func(string) PathKey
 
 type structOpts struct {
 	pathTransformFunc pathTransform
+	Metadata          *Metadata
 }
 
 type PathKey struct {
@@ -44,7 +45,6 @@ func CASPathTransformFunc(key string) PathKey {
 	hashStr := hex.EncodeToString(hash[:])
 
 	blockSize := 5
-
 	sliceLen := len(hashStr) / blockSize
 
 	paths := make([]string, sliceLen)
@@ -65,6 +65,32 @@ func CASPathTransformFunc(key string) PathKey {
 	}
 }
 
+func (s *Store) ReadStream(key string) (io.Reader, error) {
+	// PathKey := s.structOpts.pathTransformFunc(key)
+
+	// filePath := PathKey.pathname
+
+	filePath, ok := s.structOpts.Metadata.Get(key)
+	if !ok {
+		return nil, os.ErrNotExist
+	}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	buff := new(bytes.Buffer)
+
+	if _, err = io.Copy(buff, file); err != nil {
+		return nil, err
+	}
+
+	file.Close()
+
+	return buff, nil
+}
+
 func (s *Store) WriteStream(key string, w io.Reader) error {
 	pathKey := s.structOpts.pathTransformFunc(key)
 	//pathKey := s.CASPathTransformFunc(key)
@@ -82,15 +108,23 @@ func (s *Store) WriteStream(key string, w io.Reader) error {
 
 	hash := md5.Sum(buff.Bytes())
 	hashStr := hex.EncodeToString(hash[:])
+	pathKey.filename = hashStr
 
-	filePath := pathKey.pathname + "/" + hashStr
+	filePath := pathKey.pathname + "/" + pathKey.filename
 
 	f, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}
 
+	defer f.Close()
+
 	n, err := io.Copy(f, buff)
+	if err != nil {
+		return err
+	}
+
+	err = s.structOpts.Metadata.Set(key, filePath)
 	if err != nil {
 		return err
 	}
