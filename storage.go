@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"crypto/sha1"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -130,5 +131,22 @@ func (s *Store) WriteStream(key string, w io.Reader) error {
 	}
 
 	log.Printf("written (%d) bytes to disk: %s", n, filePath)
+	return nil
+}
+
+func (s *Store) Remove(key string) error {
+	filePath, ok := s.structOpts.Metadata.Get(key)
+	if !ok {
+		return os.ErrNotExist
+	}
+
+	fmt.Println(filePath)
+	paths := strings.Split(filePath, "/")
+
+	err := os.RemoveAll(paths[0])
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

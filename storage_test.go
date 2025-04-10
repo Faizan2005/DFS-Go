@@ -77,4 +77,9 @@ func TestReadStream(t *testing.T) {
 	} else {
 		t.Logf("ReadStream succeeded and data matched.")
 	}
+
+	err = store.Remove(Key)
+	if err != nil {
+		t.Errorf("Removing data failed: %v", err)
+	}
 }
