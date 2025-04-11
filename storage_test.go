@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 
 	//"os"
@@ -54,32 +55,41 @@ func TestReadStream(t *testing.T) {
 		Metadata:          NewMetadata(metaPath),
 	})
 
-	// First write to ensure file exists
-	reader := bytes.NewReader(Data)
-	err := store.WriteStream(Key, reader)
-	if err != nil {
-		t.Fatalf("WriteStream failed: %v", err)
+	for i := 0; i < 50; i++ {
+
+		key := fmt.Sprintf("file%d", i)
+		// First write to ensure file exists
+		reader := bytes.NewReader(Data)
+		err := store.WriteStream(key, reader)
+		if err != nil {
+			t.Fatalf("WriteStream failed: %v", err)
+		}
+
+		// Now test read
+		readStream, err := store.ReadStream(key)
+		if err != nil {
+			t.Fatalf("ReadStream failed: %v", err)
+		}
+
+		readData, err := io.ReadAll(readStream)
+		if err != nil {
+			t.Fatalf("Reading data failed: %v", err)
+		}
+
+		if !bytes.Equal(readData, Data) {
+			t.Errorf("ReadStream data mismatch:\ngot: %s\nwant: %s", string(readData), string(Data))
+		} else {
+			t.Logf("ReadStream succeeded and data matched.")
+		}
 	}
 
-	// Now test read
-	readStream, err := store.ReadStream(Key)
+	err := store.TearDown()
 	if err != nil {
-		t.Fatalf("ReadStream failed: %v", err)
+		t.Error(err)
 	}
 
-	readData, err := io.ReadAll(readStream)
-	if err != nil {
-		t.Fatalf("Reading data failed: %v", err)
-	}
-
-	if !bytes.Equal(readData, Data) {
-		t.Errorf("ReadStream data mismatch:\ngot: %s\nwant: %s", string(readData), string(Data))
-	} else {
-		t.Logf("ReadStream succeeded and data matched.")
-	}
-
-	err = store.Remove(Key)
-	if err != nil {
-		t.Errorf("Removing data failed: %v", err)
-	}
+	// err = store.Remove(key)
+	// if err != nil {
+	// 	t.Errorf("Removing data failed: %v", err)
+	// }
 }

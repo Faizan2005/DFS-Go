@@ -12,6 +12,8 @@ import (
 	"strings"
 )
 
+const defaultRoot = "DFSNetworkRoot"
+
 type Store struct {
 	structOpts structOpts
 }
@@ -21,6 +23,7 @@ type pathTransform func(string) PathKey
 type structOpts struct {
 	pathTransformFunc pathTransform
 	Metadata          *Metadata
+	Root              string
 }
 
 type PathKey struct {
@@ -29,9 +32,19 @@ type PathKey struct {
 }
 
 func NewStore(opts structOpts) *Store {
-	return &Store{
+	store := &Store{
 		structOpts: opts,
 	}
+
+	if store.structOpts.pathTransformFunc == nil {
+		store.structOpts.pathTransformFunc = DefaultPathTransformFunc
+	}
+
+	if store.structOpts.Root == "" {
+		store.structOpts.Root = defaultRoot
+	}
+
+	return store
 }
 
 func DefaultPathTransformFunc(key string) PathKey {
@@ -96,7 +109,7 @@ func (s *Store) WriteStream(key string, w io.Reader) error {
 	pathKey := s.structOpts.pathTransformFunc(key)
 	//pathKey := s.CASPathTransformFunc(key)
 
-	err := os.MkdirAll(pathKey.pathname, os.ModePerm)
+	err := os.MkdirAll(s.structOpts.Root+"/"+pathKey.pathname, os.ModePerm)
 	if err != nil {
 		return err
 	}
@@ -111,7 +124,7 @@ func (s *Store) WriteStream(key string, w io.Reader) error {
 	hashStr := hex.EncodeToString(hash[:])
 	pathKey.filename = hashStr
 
-	filePath := pathKey.pathname + "/" + pathKey.filename
+	filePath := s.structOpts.Root + "/" + pathKey.pathname + "/" + pathKey.filename
 
 	f, err := os.Create(filePath)
 	if err != nil {
@@ -143,10 +156,14 @@ func (s *Store) Remove(key string) error {
 	fmt.Println(filePath)
 	paths := strings.Split(filePath, "/")
 
-	err := os.RemoveAll(paths[0])
+	err := os.RemoveAll(paths[1])
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (s *Store) TearDown() error {
+	return os.RemoveAll(s.structOpts.Root)
 }
