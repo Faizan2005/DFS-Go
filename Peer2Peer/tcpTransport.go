@@ -1,6 +1,7 @@
 package peer2peer
 
 import (
+	"errors"
 	"log"
 	"net"
 )
@@ -45,6 +46,14 @@ func (t *TCPTransport) Consume() <-chan RPC {
 	return t.rpcch
 }
 
+func (t *TCPTransport) Close() error {
+	if err := t.Listener.Close(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (p *TCPPeer) Close() error {
 	return p.Conn.Close()
 }
@@ -66,6 +75,9 @@ func (t *TCPTransport) ListenAndAccept() error {
 func (t *TCPTransport) loopAndAccept() {
 	for {
 		conn, err := t.Listener.Accept()
+		if errors.Is(err, net.ErrClosed) {
+			return
+		}
 		if err != nil {
 			log.Printf("Error: %+v\n", err)
 			continue
@@ -106,4 +118,19 @@ func (t *TCPTransport) handleConn(conn net.Conn, outbound bool) {
 
 		t.rpcch <- msg
 	}
+}
+
+func (t *TCPTransport) Dial(addr string) error {
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		return err
+	}
+
+	go t.handleConn(conn, true)
+
+	return nil
+}
+
+func (t *TCPPeer) RemoteAddr() net.Addr {
+	return t.Conn.RemoteAddr()
 }

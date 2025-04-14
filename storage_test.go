@@ -33,8 +33,8 @@ func TestWriteStream(t *testing.T) {
 	metaPath := "test_metadata.json"
 	//defer os.Remove(metaPath) // clean after test
 
-	store := NewStore(structOpts{
-		pathTransformFunc: CASPathTransformFunc,
+	store := NewStore(StructOpts{
+		PathTransformFunc: CASPathTransformFunc,
 		Metadata:          NewMetadata(metaPath),
 	})
 
@@ -50,8 +50,8 @@ func TestReadStream(t *testing.T) {
 	metaPath := "test_metadata.json"
 	//defer os.Remove(metaPath) // clean metadata file
 
-	store := NewStore(structOpts{
-		pathTransformFunc: CASPathTransformFunc,
+	store := NewStore(StructOpts{
+		PathTransformFunc: CASPathTransformFunc,
 		Metadata:          NewMetadata(metaPath),
 	})
 

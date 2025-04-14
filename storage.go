@@ -15,13 +15,13 @@ import (
 const defaultRoot = "DFSNetworkRoot"
 
 type Store struct {
-	structOpts structOpts
+	structOpts StructOpts
 }
 
 type pathTransform func(string) PathKey
 
-type structOpts struct {
-	pathTransformFunc pathTransform
+type StructOpts struct {
+	PathTransformFunc pathTransform
 	Metadata          *Metadata
 	Root              string
 }
@@ -31,13 +31,13 @@ type PathKey struct {
 	filename string
 }
 
-func NewStore(opts structOpts) *Store {
+func NewStore(opts StructOpts) *Store {
 	store := &Store{
 		structOpts: opts,
 	}
 
-	if store.structOpts.pathTransformFunc == nil {
-		store.structOpts.pathTransformFunc = DefaultPathTransformFunc
+	if store.structOpts.PathTransformFunc == nil {
+		store.structOpts.PathTransformFunc = DefaultPathTransformFunc
 	}
 
 	if store.structOpts.Root == "" {
@@ -106,7 +106,7 @@ func (s *Store) ReadStream(key string) (io.Reader, error) {
 }
 
 func (s *Store) WriteStream(key string, w io.Reader) error {
-	pathKey := s.structOpts.pathTransformFunc(key)
+	pathKey := s.structOpts.PathTransformFunc(key)
 	//pathKey := s.CASPathTransformFunc(key)
 
 	err := os.MkdirAll(s.structOpts.Root+"/"+pathKey.pathname, os.ModePerm)
