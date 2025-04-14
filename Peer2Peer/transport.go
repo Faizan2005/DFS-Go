@@ -5,6 +5,7 @@ import "net"
 type Peer interface {
 	Close() error
 	RemoteAddr() net.Addr
+	Send([]byte) error
 }
 
 type Transport interface {

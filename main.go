@@ -2,39 +2,45 @@ package main
 
 import (
 	"log"
-	"time"
+
+	//"time"
 
 	peer2peer "github.com/Faizan2005/DFS-Go/Peer2Peer"
 )
 
-func onPeer(peer peer2peer.Peer) error {
-	//peer.Close()
-	return nil
-}
-
 func main() {
-	metaPath := "test_metadata.json"
+	s1 := makeServer(":3000")
+	s2 := makeServer(":4000", ":3000")
 
-	tcpOpts := peer2peer.TCPTransportOpts{
-		ListenAddr:    ":3000",
-		HandshakeFunc: peer2peer.NOPEHandshakeFunc,
-		Decoder:       peer2peer.DefaultDecoder{},
-		OnPeer:        onPeer,
-	}
-	opts := ServerOpts{
-		pathTransform: CASPathTransformFunc,
-		tcpTransport:  *peer2peer.NewTCPTransport(tcpOpts),
-		metaData:      *NewMetadata(metaPath),
-		
-	}
-
-	s := NewServer(opts)
 	go func() {
-		if err := s.Run(); err != nil {
-			log.Println("Server error:", err)
+		if err := s1.Run(); err != nil {
+			log.Println("Server s1 error:", err)
 		}
 	}()
 
-	time.Sleep(3 * time.Second)
-	s.Stop()
+	s2.Run()
+}
+
+func makeServer(listenAddr string, node ...string) *Server {
+	metaPath := "test_metadata.json"
+
+	tcpOpts := peer2peer.TCPTransportOpts{
+		ListenAddr:    listenAddr,
+		HandshakeFunc: peer2peer.NOPEHandshakeFunc,
+		Decoder:       peer2peer.DefaultDecoder{},
+	}
+	tcpTransport := peer2peer.NewTCPTransport(tcpOpts)
+
+	s := &Server{} // create server first to use its OnPeer
+	tcpTransport.OnPeer = s.OnPeer
+
+	opts := ServerOpts{
+		pathTransform:  CASPathTransformFunc,
+		tcpTransport:   *tcpTransport,
+		metaData:       *NewMetadata(metaPath),
+		bootstrapNodes: node,
+	}
+
+	*s = *NewServer(opts)
+	return s
 }

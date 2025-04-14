@@ -134,3 +134,14 @@ func (t *TCPTransport) Dial(addr string) error {
 func (t *TCPPeer) RemoteAddr() net.Addr {
 	return t.Conn.RemoteAddr()
 }
+
+func (t *TCPPeer) Send(b []byte) error {
+	n, err := t.Conn.Write(b)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("sent (%d) bytes over network", n)
+
+	return nil
+}

@@ -33,6 +33,7 @@ func NewServer(opts ServerOpts) *Server {
 	}
 
 	return &Server{
+		peers:      map[string]peer2peer.Peer{},
 		serverOpts: opts,
 		Store:      NewStore(StoreOpts),
 		quitch:     make(chan struct{}),
@@ -44,6 +45,14 @@ func (s *Server) Run() error {
 	if err != nil {
 		return err
 	}
+
+	if len(s.serverOpts.bootstrapNodes) != 0 {
+		err := s.BootstrapNetwork()
+		if err != nil {
+			return err
+		}
+	}
+
 	s.loop()
 	return nil
 }
@@ -93,6 +102,6 @@ func (s *Server) OnPeer(p peer2peer.Peer) error {
 	addr := p.RemoteAddr()
 
 	s.peers[addr.String()] = p
-	log.Println("connected with remote: ", p)
+	log.Printf("[OnPeer] Connected with remote peer: %s\n", addr.String())
 	return nil
 }
