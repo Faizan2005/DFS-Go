@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"log"
+	"time"
 
 	//"time"
 
@@ -17,8 +19,15 @@ func main() {
 			log.Println("Server s1 error:", err)
 		}
 	}()
+	time.Sleep(1 * time.Second)
 
-	s2.Run()
+	go s2.Run()
+	time.Sleep(1 * time.Second)
+
+	data := bytes.NewReader([]byte("This is some data"))
+	s2.StoreData("this is a secret key", data)
+
+	select {}
 }
 
 func makeServer(listenAddr string, node ...string) *Server {

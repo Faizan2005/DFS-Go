@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
+	"io"
 	"log"
 	"sync"
 
@@ -23,6 +26,54 @@ type Server struct {
 	serverOpts ServerOpts
 	Store      *Store
 	quitch     chan struct{}
+}
+
+type Message struct {
+	from    string
+	payload any
+}
+
+type dataMessage struct {
+	key  string
+	data []byte
+}
+
+func (s *Server) StoreData(key string, w io.Reader) error {
+	buff := new(bytes.Buffer)
+	tee := io.TeeReader(w, buff)
+
+	err := s.Store.WriteStream(key, tee)
+	if err != nil {
+		return err
+	}
+
+	p := &dataMessage{
+		key:  key,
+		data: buff.Bytes(),
+	}
+
+	err = s.Broadcast(*p)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Server) Broadcast(d dataMessage) error {
+	peerList := []io.Writer{}
+	for _, peer := range s.peers {
+		peerList = append(peerList, peer)
+	}
+
+	mw := io.MultiWriter(peerList...)
+
+	msg := Message{
+		from:    "self",
+		payload: &d,
+	}
+
+	return gob.NewEncoder(mw).Encode(msg)
 }
 
 func NewServer(opts ServerOpts) *Server {
@@ -66,12 +117,28 @@ func (s *Server) loop() {
 	for {
 		select {
 		case msg := <-s.serverOpts.tcpTransport.Consume():
-			fmt.Println(msg)
+			var message Message
+			err := gob.NewDecoder(bytes.NewReader(msg.Payload)).Decode(&message)
+			log.Print(err)
+			fmt.Println(message)
+
+			if err := s.handleMessage(&message); err != nil {
+				return
+			}
 
 		case <-s.quitch:
 			return
 		}
 	}
+}
+
+func (s *Server) handleMessage(msg *Message) error {
+	switch m := msg.payload.(type) {
+	case *dataMessage:
+		fmt.Printf("recieved data: %+v\n", m)
+	}
+
+	return nil
 }
 
 func (s *Server) Stop() {
