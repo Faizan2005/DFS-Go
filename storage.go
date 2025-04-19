@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"crypto/sha1"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -166,4 +167,11 @@ func (s *Store) Remove(key string) error {
 
 func (s *Store) TearDown() error {
 	return os.RemoveAll(s.structOpts.Root)
+}
+
+func (s *Store) Has(key string) bool {
+	filePath, _ := s.structOpts.Metadata.Get(key)
+
+	_, err := os.Stat(filePath)
+	return !errors.Is(err, os.ErrNotExist)
 }
