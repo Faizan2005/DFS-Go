@@ -29,7 +29,6 @@ type Server struct {
 }
 
 type Message struct {
-	from    string
 	payload any
 }
 
@@ -54,11 +53,16 @@ func (s *Server) GetData(key string) (io.Reader, error) {
 
 	fmt.Print("file not available on disk")
 
-	p := &MessageGetFile{
-		key: key,
+	p := &Message{
+		payload: MessageGetFile{
+			key: key,
+		},
 	}
 
-	s.Broadcast(p)
+	if err := s.Broadcast(*p); err != nil {
+		return nil, err
+	}
+
 }
 
 func (s *Server) StoreData(key string, w io.Reader) error {
@@ -70,8 +74,10 @@ func (s *Server) StoreData(key string, w io.Reader) error {
 		return err
 	}
 
-	p := &MessageStoreFile{
-		key: key,
+	p := &Message{
+		payload: MessageStoreFile{
+			key: key,
+		},
 		//size: ,
 	}
 
@@ -183,6 +189,34 @@ func (s *Server) handleMessage(from string, msg *Message) error {
 	switch m := msg.payload.(type) {
 	case *MessageStoreFile:
 		return s.handleStoreMessage(from, m)
+
+	case *MessageGetFile:
+		return s.handleGetMessage(from, m)
+	}
+
+	return nil
+}
+
+func (s *Server) handleGetMessage(from string, msg *MessageGetFile) error {
+	peer, ok := s.peers[from]
+	if !ok {
+		return fmt.Errorf("peer (%s) not found", from)
+	}
+
+	r, err := s.Store.ReadStream(msg.key)
+	if err != nil {
+		return fmt.Errorf("error fetching file from disk: %+v", err)
+	}
+
+	buff := new(bytes.Buffer)
+	_, err = io.Copy(buff, r)
+	if err != nil {
+		return fmt.Errorf("error copying file to buffer: %w", err)
+	}
+
+	err = peer.Send(buff.Bytes())
+	if err != nil {
+		return fmt.Errorf("error sending data to peer: %w", err)
 	}
 
 	return nil
